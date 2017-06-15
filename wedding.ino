@@ -13,7 +13,7 @@
 // First parameter is the number of LEDs in the strand.  The LED strips
 // are 32 LEDs per meter but you can extend or cut the strip.  Next two
 // parameters are SPI data and clock pins:
-LPD8806 strip = LPD8806(160);
+LPD8806 strip = LPD8806(140);
 
 // You can optionally use hardware SPI for faster writes, just leave out
 // the data and clock pin parameters.  But this does limit use to very
@@ -23,14 +23,22 @@ LPD8806 strip = LPD8806(160);
 // clock = pin B1.  For Leonardo, this can ONLY be done on the ICSP pins.
 //LPD8806 strip = LPD8806(nLEDs);
 
+#define PIN_PWM   3
+#define PIN_DATA  11
+#define PIN_CLOCK 13
 
-#define PIPES_COUNT 7
-#define PIPE_LEN 20
-#define WAIT_TIME 20
+#define PIPES_COUNT  7
+#define PIPE_LEN    10
+#define WAIT_TIME   10
 
 
 byte inputPin[PIPES_COUNT] = {
-	1, 2, 2, 2, 2, 2, 2
+	4, 5, 6, 7, 8, 9, 12
+};
+
+int pipeEnds[2][PIPES_COUNT] = {
+	{ 0,  20, 40, 60, 80, 100, 120 },
+	{ 19, 39, 59, 79, 99, 119, 139 },
 };
 
 byte handIsOver[PIPES_COUNT] = {
@@ -41,18 +49,13 @@ byte pipeIsOn[PIPES_COUNT] = {
 	0, 0, 0, 0, 0, 0, 0
 };
 
-int pipeEnds[2][PIPES_COUNT] = {
-	{	0, 8, 16 },
-	{	0, 8, 16 },
-};
-
 
 void setup()
 {
 	/* Init the LED strip */
 
-  strip.begin();
-  strip.show();
+	strip.begin();
+	strip.show();
 
 
 	/* Input PINs */
@@ -65,11 +68,11 @@ void setup()
 
 	/* Init PWM (36kHz) for IR transmitters */
 
-	pinMode(3, OUTPUT);
-  TCCR2A = _BV(COM2A0) | _BV(COM2B1) | _BV(WGM21) | _BV(WGM20);
-  TCCR2B = _BV(WGM22) | _BV(CS21);
-  OCR2A = 54;
-  OCR2B = 26;
+	pinMode(PIN_PWM, OUTPUT);
+	TCCR2A = _BV(COM2A0) | _BV(COM2B1) | _BV(WGM21) | _BV(WGM20);
+	TCCR2B = _BV(WGM22) | _BV(CS21);
+	OCR2A = 54;
+	OCR2B = 26;
 }
 
 
@@ -92,7 +95,7 @@ void loop()
 void detect_hand_position()
 {
 	for (byte i = 0; i < PIPES_COUNT; i++) {
-		if (digitalRead(inputPin[i])) {
+		if (digitalRead(inputPin[i]) == LOW) {
 			handIsOver[i] = 1;
 		} else {
 			handIsOver[i] = 0;
@@ -103,25 +106,27 @@ void detect_hand_position()
 
 void switchPipeOn(byte i)
 {
-  for (int led_index = 0; led_index < PIPE_LEN; led_index++) {
-      strip.setPixelColor(pipeEnds[0][i] + led_index, 10, 2, 0);
-      strip.setPixelColor(pipeEnds[1][i] - led_index, 2, 10, 0);
+	for (int led_index = 0; led_index < PIPE_LEN; led_index++) {
+		strip.setPixelColor(pipeEnds[0][i] + led_index, 10, 2, 0);
+		strip.setPixelColor(pipeEnds[1][i] - led_index, 2, 10, 0);
 
-      strip.show();
-      delay(WAIT_TIME);
-  }
+		strip.show();
+		pipeIsOn[i] = 1;
+		delay(WAIT_TIME);
+	}
 
 }
 
 
 void switchPipeOff(byte i)
 {
-  for (int led_index = PIPE_LEN; led_index >= 0 ; led_index--) {
-      strip.setPixelColor(pipeEnds[0][i] + led_index, 0, 0, 0);
-      strip.setPixelColor(pipeEnds[1][i] - led_index, 0, 0, 0);
+	for (int led_index = PIPE_LEN; led_index >= 0 ; led_index--) {
+		strip.setPixelColor(pipeEnds[0][i] + led_index, 0, 0, 0);
+		strip.setPixelColor(pipeEnds[1][i] - led_index, 0, 0, 0);
 
-      strip.show();
-      delay(WAIT_TIME);
-  }
+		strip.show();
+		pipeIsOn[i] = 0;
+		delay(WAIT_TIME);
+	}
 }
 
