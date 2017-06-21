@@ -4,7 +4,8 @@
 #define PIN_PWM   3
 #define PIN_DATA  11
 #define PIN_CLOCK 13
-#define PIN_CHANGE_COLOUR 7
+#define PIN_CHANGE_COLOUR_A 7
+#define PIN_CHANGE_COLOUR_B 8
 
 #define COLOURS_COUNT 6
 #define LED_COUNT 60
@@ -33,6 +34,7 @@ LPD8806 strip = LPD8806(LED_COUNT);
 
 
 bool isProcessingChange = false;
+bool isProcessingChange_b = false;
 int current_colour = 0;
 
 
@@ -51,13 +53,15 @@ void setup()
 	TCCR2B = _BV(WGM22) | _BV(CS21);
 	OCR2A = 54;
 	OCR2B = 26;
-	delay(100);
+	delay(500);
 
 
 	/* Input PINs */
 
-	pinMode(PIN_CHANGE_COLOUR, INPUT);
-	digitalWrite(PIN_CHANGE_COLOUR, HIGH);
+	pinMode(PIN_CHANGE_COLOUR_A, INPUT);
+	pinMode(PIN_CHANGE_COLOUR_B, INPUT);
+	digitalWrite(PIN_CHANGE_COLOUR_A, HIGH);
+	digitalWrite(PIN_CHANGE_COLOUR_B, HIGH);
 }
 
 
@@ -72,6 +76,7 @@ void loop()
 			strip.show();
 			delay(30);
 			process_colour_buttons();
+			process_colour_buttons_b();
 	}
 
 	for (brightness; brightness >= 0; brightness--) {
@@ -81,6 +86,7 @@ void loop()
 			strip.show();
 			delay(30);
 			process_colour_buttons();
+			process_colour_buttons_b();
 	}
 }
 
@@ -131,19 +137,51 @@ int cycle_colours()
 }
 
 
+int cycle_colours_b()
+{
+	int new_colour = current_colour - 1;
+
+	if (new_colour < 0) {
+		new_colour = COLOURS_COUNT - 1;
+	}
+
+	current_colour = new_colour;
+}
+
+
 bool process_colour_buttons()
 {
-	if (! isProcessingChange && digitalRead(PIN_CHANGE_COLOUR) == LOW) {
+	if (! isProcessingChange && digitalRead(PIN_CHANGE_COLOUR_A) == LOW) {
 		isProcessingChange = true;
 
 		cycle_colours();
 
-		delay(50);
+		delay(100);
 		return true;
 	}
 
-	if (digitalRead(PIN_CHANGE_COLOUR) == HIGH) {
+	if (digitalRead(PIN_CHANGE_COLOUR_A) == HIGH) {
 		isProcessingChange = false;
+	}
+
+
+	return false;
+}
+
+
+bool process_colour_buttons_b()
+{
+	if (! isProcessingChange_b && digitalRead(PIN_CHANGE_COLOUR_B) == LOW) {
+		isProcessingChange_b = true;
+
+		cycle_colours_b();
+
+		delay(100);
+		return true;
+	}
+
+	if (digitalRead(PIN_CHANGE_COLOUR_B) == HIGH) {
+		isProcessingChange_b = false;
 	}
 
 
