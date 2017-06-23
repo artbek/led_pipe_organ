@@ -7,9 +7,10 @@
 #define PIN_CHANGE_COLOUR_A 7
 #define PIN_CHANGE_COLOUR_B 8
 
-#define COLOURS_COUNT 6
-#define LED_COUNT 60
+#define COLOURS_COUNT 12
+#define LED_COUNT 104
 #define BRIGHTNESS_MAX 50
+#define RAINBOW_MODE_COUNTER_MAX 12
 
 // Example to control LPD8806-based RGB LED Modules in a strip
 
@@ -36,6 +37,7 @@ LPD8806 strip = LPD8806(LED_COUNT);
 bool isProcessingChange = false;
 bool isProcessingChange_b = false;
 int current_colour = 0;
+int rainbowModeCounter = -1;
 
 
 void setup()
@@ -62,55 +64,96 @@ void setup()
 	pinMode(PIN_CHANGE_COLOUR_B, INPUT);
 	digitalWrite(PIN_CHANGE_COLOUR_A, HIGH);
 	digitalWrite(PIN_CHANGE_COLOUR_B, HIGH);
+
+	//Serial.begin(9600);
 }
 
 
 void loop()
 {
-	int brightness;
+	if (rainbowModeCounter < 0) {
 
-	for (brightness = 0; brightness < BRIGHTNESS_MAX; brightness++) {
-		for (int led_index = 0; led_index < LED_COUNT; led_index++) {
-			strip.setPixelColor(led_index, get_colour(current_colour, brightness));
-		}
+		rainbow(50);
+
+	} else {
+
+		rainbowModeCounter--;
+
+		int brightness;
+		int led_index;
+
+		for (brightness = 1; brightness < BRIGHTNESS_MAX; brightness++) {
+			for (led_index = 0; led_index < LED_COUNT; led_index++) {
+				strip.setPixelColor(led_index, get_colour(current_colour, brightness));
+			}
 			strip.show();
 			delay(30);
 			process_colour_buttons();
 			process_colour_buttons_b();
-	}
-
-	for (brightness; brightness >= 0; brightness--) {
-		for (int led_index = 0; led_index < LED_COUNT; led_index++) {
-			strip.setPixelColor(led_index, get_colour(current_colour, brightness));
 		}
+
+		for (brightness; brightness >= 1; brightness--) {
+			for (led_index = 0; led_index < LED_COUNT; led_index++) {
+				strip.setPixelColor(led_index, get_colour(current_colour, brightness));
+			}
 			strip.show();
 			delay(30);
 			process_colour_buttons();
 			process_colour_buttons_b();
+		}
+
+
 	}
+
+	//Serial.println(rainbowModeCounter);
 }
 
 
-void rainbow(uint8_t wait) {
+void rainbow(uint8_t wait)
+{
   int i, j;
 
-  for (j=0; j < 384; j++) {     // 3 cycles of all 384 colors in the wheel
-    for (i=0; i < strip.numPixels(); i++) {
+  for (j=0; j < 384; j++) {
+    for (i=0; i < LED_COUNT; i++) {
       strip.setPixelColor(i, Wheel( (i + j) % 384));
     }
-    strip.show();   // write all the pixels out
+
+		if (detected_user_activity()) {
+			return;
+		}
+
+    strip.show();
+    delay(wait);
+  }
+
+  for (j; j >= 0; j--) {
+    for (i=0; i < LED_COUNT; i++) {
+      strip.setPixelColor(i, Wheel( (i + j) % 384));
+    }
+
+		if (detected_user_activity()) {
+			return;
+		}
+
+    strip.show();
     delay(wait);
   }
 }
 
 
 uint8_t colours[COLOURS_COUNT][3] = {
-	{ 1, 0, 0 },
-	{ 1, 1, 0 },
-	{ 0, 1, 0 },
-	{ 0, 1, 1 },
-	{ 0, 0, 1 },
-	{ 1, 0, 1 },
+	{ 2, 0, 0 },
+	{ 2, 1, 0 },
+	{ 2, 2, 0 },
+	{ 1, 2, 0 },
+	{ 0, 2, 0 },
+	{ 0, 2, 1 },
+	{ 0, 2, 2 },
+	{ 0, 1, 2 },
+	{ 0, 0, 2 },
+	{ 1, 0, 2 },
+	{ 2, 0, 2 },
+	{ 2, 0, 1 },
 };
 
 uint32_t get_colour(uint8_t c, uint8_t brightness)
@@ -149,43 +192,54 @@ int cycle_colours_b()
 }
 
 
-bool process_colour_buttons()
+bool detected_user_activity()
 {
-	if (! isProcessingChange && digitalRead(PIN_CHANGE_COLOUR_A) == LOW) {
-		isProcessingChange = true;
-
-		cycle_colours();
-
-		delay(100);
+	if (digitalRead(PIN_CHANGE_COLOUR_A) == LOW || digitalRead(PIN_CHANGE_COLOUR_B) == LOW) {
+		reset_rainbow_mode_counter();
 		return true;
 	}
-
-	if (digitalRead(PIN_CHANGE_COLOUR_A) == HIGH) {
-		isProcessingChange = false;
-	}
-
 
 	return false;
 }
 
 
-bool process_colour_buttons_b()
+void reset_rainbow_mode_counter()
+{
+	rainbowModeCounter = RAINBOW_MODE_COUNTER_MAX;
+}
+
+
+void process_colour_buttons()
+{
+	if (! isProcessingChange && digitalRead(PIN_CHANGE_COLOUR_A) == LOW) {
+		isProcessingChange = true;
+		reset_rainbow_mode_counter();
+
+		cycle_colours();
+
+		delay(300);
+	}
+
+	if (digitalRead(PIN_CHANGE_COLOUR_A) == HIGH) {
+		isProcessingChange = false;
+	}
+}
+
+
+void process_colour_buttons_b()
 {
 	if (! isProcessingChange_b && digitalRead(PIN_CHANGE_COLOUR_B) == LOW) {
 		isProcessingChange_b = true;
+		reset_rainbow_mode_counter();
 
 		cycle_colours_b();
 
-		delay(100);
-		return true;
+		delay(300);
 	}
 
 	if (digitalRead(PIN_CHANGE_COLOUR_B) == HIGH) {
 		isProcessingChange_b = false;
 	}
-
-
-	return false;
 }
 
 
